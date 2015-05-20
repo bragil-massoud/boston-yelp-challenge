@@ -11,6 +11,7 @@ library(SnowballC)
 library(tm)
 library(doMC)
 library(topicmodels)
+library(data.table)
 
 basepath = "/mnt//r-devel/simon//boston-yelp-challenge/data/"
 registerDoMC(cores = 7)
@@ -110,8 +111,8 @@ rowTotals = apply(review.mat , 1, sum)
 review.mat = review.mat[rowTotals> 0, ]     
 words = apply(review.mat, 2, function(x) sum(x)/sum(x>0))
 
-review.lda = LDA(review.mat, k=10, control=list(verbose=T))
-save(review.lda, file=paste0(basepath, "review.lda"))
+#review.lda = LDA(review.mat, k=10, control=list(verbose=T))
+#save(review.lda, file=paste0(basepath, "review.lda"))
 review.lda = load(file=paste0(basepath, "review.lda"))
 review.topics = topics(review.lda, 1)
 review.topics.terms <- terms(review.lda, 50)
@@ -127,23 +128,16 @@ review_topics = inner_join(select(review, -text),
                                       review.lda@gamma)) %>%
   inner_join(unique(select(business_train, business_id)))
 
-relevant_review_words = function(last_date) {
-  r = filter(review_topics, date <= last_date) %>% mutate(date = last_date) %>%
-    group_by(date, business_id) %>%
-    summarise_each(funs(mean), starts_with("X"))
-  #print(paste(last_date, nrow(r)))
-  return(r)
-}
-
 review_topics_tall = gather(review_topics, topic, value, starts_with("X"))
 
 review_topics_tall %<>%
   group_by(business_id, topic) %>%
   arrange(date) %>%
   mutate(value = cumsum(value), numreview = row_number(), value = value/numreview)
-  
 
-reviews_till_date = business_train %>% group_by(date) %>% do(relevant_review_words(.$date[1]))
+review_topics_cumulative = review_topics_tall %>% spread(key=topic, value = value)
+
+business_train
 
 tip = paste("[",
             paste(readLines(paste0(basepath, "yelp_academic_dataset_tip.json")),

@@ -113,7 +113,7 @@ words = apply(review.mat, 2, function(x) sum(x)/sum(x>0))
 
 #review.lda = LDA(review.mat, k=10, control=list(verbose=T))
 #save(review.lda, file=paste0(basepath, "review.lda"))
-review.lda = load(file=paste0(basepath, "review.lda"))
+load(file=paste0(basepath, "review.lda"))
 review.topics = topics(review.lda, 1)
 review.topics.terms <- terms(review.lda, 50)
 review.topics.terms

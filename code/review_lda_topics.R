@@ -12,6 +12,17 @@ basepath = "/mnt//r-devel/simon//boston-yelp-challenge/data/"
 source(paste0(basepath, "../code/helpers.R"))
 
 review= multi_json(paste0(basepath, "yelp_academic_dataset_review.json"))
+review$date = ymd(review$date)
+
+# create a table of how long each yelp entry was active, to accurately map restaurant meta data in case of name changes 
+# to inspection dates
+active_dates = group_by(review, business_id) %>%
+  summarize(start = min(date), end=max(date), n=n(), peak=median(date)) %>%
+  inner_join(id2yelp)
+
+write.csv(active_dates, paste0(basepath, "active_dates.csv"), row.names=F)
+
+
 #negation tagging fuse not and don't to following word
 review$text = gsub("not\\s+", " not_", review$text)
 review$text = gsub("n't\\s+", " not_", review$text)
@@ -36,14 +47,17 @@ review.mat = review.mat[rowTotals> 0, ]
 words = apply(review.mat, 2, function(x) sum(x)/sum(x>0))
 
 #perform lda, commented out and saved to disk to save time
-#review.lda = LDA(review.mat, k=10, control=list(verbose=T))
-#save(review.lda, file=paste0(basepath, "review.lda"))
+review.lda = LDA(review.mat, k=25, control=list(verbose=T))
+save(review.lda, file=paste0(basepath, "review25.lda"))
 load(file=paste0(basepath, "review.lda"))
 
-#show topics and their most important words
+#debug: show topics and their most important words
 review.topics = topics(review.lda, 1)
-review.topics.terms <- terms(review.lda, 50)
+review.topics.terms <- terms(review.lda, 150)
 review.topics.terms
+
+#debug: texts that talk a lot about topic 10
+review[rownames(review.mat)[which(review.lda@gamma[,10]>0.7)],]
 
 #debug: which topic associated with "notfresh"
 review.lda@beta[,which(review.lda@terms=="notfresh")]
@@ -54,14 +68,16 @@ review_topics = inner_join(select(review, -text),
 
 review_topics_tall = gather(review_topics, topic, value, starts_with("X"))
 
-review_topics_tall %<>%
-  group_by(business_id, topic) %>%
+review_topics_tall =
+  inner_join(review_topics_tall, id2yelp) %>%
+  group_by(restaurant_id, topic) %>%
   arrange(date) %>%
-  mutate(value = cumsum(value), numreview = row_number(), value = value/numreview)
+  mutate(value = cumsum(value), numreview = row_number(), value = value/numreview) %>%
+  select(restaurant_id, date, topic, value, numreview)
 
 review_topics_cumulative = review_topics_tall %>%
   spread(key=topic, value = value)
 
-review_topics_cumulative = review_topics_cumulative[!duplicated(select(review_topics_cumulative, business_id, date))]
+review_topics_cumulative = review_topics_cumulative[!duplicated(select(review_topics_cumulative, restaurant_id, date)),]
 
 write.csv(review_topics_cumulative, paste0(basepath, "review_topics_cumulative.csv"), row.names=F)

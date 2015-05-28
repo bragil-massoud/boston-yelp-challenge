@@ -1,3 +1,8 @@
+#boston restaurant inspection to yelp mapping
+id2yelp = read.csv(paste0(basepath, "restaurant_ids_to_yelp_ids.csv")) %>%
+  gather(key, business_id, -restaurant_id)
+
+
 # col name data required
 multi_model_matrix = function(df, emptycolname) {
   max_cat =  max(sapply(df$data, length))

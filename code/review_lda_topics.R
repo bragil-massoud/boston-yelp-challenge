@@ -47,37 +47,53 @@ review.mat = review.mat[rowTotals> 0, ]
 words = apply(review.mat, 2, function(x) sum(x)/sum(x>0))
 
 #perform lda, commented out and saved to disk to save time
-review.lda = LDA(review.mat, k=25, control=list(verbose=T))
-save(review.lda, file=paste0(basepath, "review25.lda"))
-load(file=paste0(basepath, "review.lda"))
+#review5.lda = LDA(review.mat, k=5, control=list(verbose=T))
+#save(review5.lda, file=paste0(basepath, "review5.lda"))
+#review10.lda = LDA(review.mat, k=10, control=list(verbose=T))
+#save(review10.lda, file=paste0(basepath, "review10.lda"))
+#review25.lda = LDA(review.mat, k=25, control=list(verbose=T))
+#save(review25.lda, file=paste0(basepath, "review25.lda"))
 
-#debug: show topics and their most important words
-review.topics = topics(review.lda, 1)
-review.topics.terms <- terms(review.lda, 150)
-review.topics.terms
+load(file=paste0(basepath, "review5.lda"))
+load(file=paste0(basepath, "review10.lda"))
+load(file=paste0(basepath, "review25.lda"))
 
-#debug: texts that talk a lot about topic 10
-review[rownames(review.mat)[which(review.lda@gamma[,10]>0.7)],]
+cumlda = function(review.lda, filename) {
+  #debug: show topics and their most important words
+  review.topics = topics(review.lda, 1)
+  review.topics.terms <- terms(review.lda, 150)
+  review.topics.terms
+  
+  #debug: texts that talk a lot about topic 10
+  review[rownames(review.mat)[which(review.lda@gamma[,5]>0.7)],]
+  
+  #debug: which topic associated with "notfresh"
+  review.lda@beta[,which(review.lda@terms=="notfresh")]
+  
+  review_topics = inner_join(select(review, -text),
+                             data.frame(review_id = review[rownames(review.mat),]$review_id,
+                                        review.lda@gamma))
+  
+  review_topics_tall = gather(review_topics, topic, value, starts_with("X"))
+  
+  review_topics_tall =
+    inner_join(review_topics_tall, id2yelp) %>%
+    group_by(restaurant_id, topic) %>%
+    arrange(date) %>%
+    mutate(value = cumsum(value), numreview = row_number(), value = value/numreview) %>%
+    select(restaurant_id, date, topic, value, numreview)
+  
+  review_topics_cumulative = review_topics_tall %>%
+    spread(key=topic, value = value)
+  
+  review_topics_cumulative = review_topics_cumulative[!duplicated(select(review_topics_cumulative, restaurant_id, date)),]
+  
+  write.csv(review_topics_cumulative, paste0(basepath, filename), row.names=F)
+}
 
-#debug: which topic associated with "notfresh"
-review.lda@beta[,which(review.lda@terms=="notfresh")]
+cumlda(review5.lda, "review_topics_cumulative5.csv")
+cumlda(review10.lda, "review_topics_cumulative10.csv")
+cumlda(review25.lda, "review_topics_cumulative25.csv")
 
-review_topics = inner_join(select(review, -text),
-                           data.frame(review_id = review[rownames(review.mat),]$review_id,
-                                      review.lda@gamma))
 
-review_topics_tall = gather(review_topics, topic, value, starts_with("X"))
 
-review_topics_tall =
-  inner_join(review_topics_tall, id2yelp) %>%
-  group_by(restaurant_id, topic) %>%
-  arrange(date) %>%
-  mutate(value = cumsum(value), numreview = row_number(), value = value/numreview) %>%
-  select(restaurant_id, date, topic, value, numreview)
-
-review_topics_cumulative = review_topics_tall %>%
-  spread(key=topic, value = value)
-
-review_topics_cumulative = review_topics_cumulative[!duplicated(select(review_topics_cumulative, restaurant_id, date)),]
-
-write.csv(review_topics_cumulative, paste0(basepath, "review_topics_cumulative.csv"), row.names=F)

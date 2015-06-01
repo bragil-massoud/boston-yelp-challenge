@@ -12,7 +12,7 @@ best_yelp = active_dates %>%
   ungroup() %>%
   select(business_id, restaurant_id)
 
-load(file=paste0(basepath, "models.Rdata"))
+load(file=paste0(basepath, "models_rf10_lda25.Rdata"))
 
 submission = read.csv(paste0(basepath, "SubmissionFormat.csv")) %>%
   select(id, date, restaurant_id)
@@ -23,9 +23,11 @@ submission_data = inner_join(submission, id2yelp) %>%
   inner_join(best_yelp) %>%
   inner_join(business) %>%
   mutate(date = ymd(date))
+submission_data$weekday = as.factor(wday(submission_data$date))
+submission_data$month = as.factor(month(submission_data$date))
 
 #special hack for test submission: use reviews from the future
-review_topics_cumulative = fread(paste0(basepath, "review_topics_cumulative.csv"))
+review_topics_cumulative = fread(paste0(basepath, "review_topics_cumulative25.csv"))
 review_topics_cumulative$date = ymd(review_topics_cumulative$date )
 submission_data_lda =
   data.table(select(review_topics_cumulative, restaurant_id, date, starts_with("X")),

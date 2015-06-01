@@ -5,10 +5,10 @@ names(id2yelp) = c("restaurant_id", "key", "business_id")
 
 
 # col name data required
-multi_model_matrix = function(df, emptycolname) {
+multi_model_matrix = function(df, emptycolname, prefix="") {
   max_cat =  max(sapply(df$data, length))
   cat_cols = paste(rep("Category", max_cat), 1:max_cat,sep="")
-  df$data = sapply(df$data,function(x) paste(x, collapse=","))
+  df$data = sapply(df$data,function(x) paste(paste(prefix, x, sep=""), collapse=","))
   df = separate(df,
                 data,
                 into=cat_cols,

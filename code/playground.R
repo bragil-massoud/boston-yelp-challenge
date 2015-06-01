@@ -6,3 +6,5 @@ ggplot(hours,aes(x=hours.Friday.open, y=hours.Friday.close, fill=V1)) + geom_til
 
 
 ggplot(business_train, aes(x=as.factor(ncat), y=V1)) + geom_violin()
+
+ggplot(business_train, aes(x=lunch_only, y=V1)) + geom_violin()

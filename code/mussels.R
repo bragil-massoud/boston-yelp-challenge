@@ -13,7 +13,7 @@ library(data.table)
 basepath = "/mnt//r-devel/simon//boston-yelp-challenge/data/"
 source(paste0(basepath, "../code/helpers.R"))
 
-registerDoMC(cores = 7)
+#registerDoMC(cores = 7)
 
 #previous inspection results
 train_lab = read.csv(paste0(basepath, "train_labels.csv"))
@@ -65,6 +65,8 @@ business$attributes.Wi.Fi = as.factor(business$attributes.Wi.Fi)
 business$attributes.Noise.Level = as.factor(business$attributes.Noise.Level)
 business$attributes.Attire = as.factor(business$attributes.Attire)
 
+business$full_address = gsub("\\n", " ", business$full_address)
+
 #business all opening hours given as HH:MM to fractional hours as numeric
 business=mutate_each(business,
                      funs(ifelse(. == "FALSE", NA,
@@ -81,13 +83,30 @@ business$lunch_only=!is.na(business$hours.Wednesday.close) & (
 business$ncat = apply(select(business, contains("cat_")), 1, sum)
 
 business[is.na(business)] = 0
+business = data.frame(business)
+business[sapply(business, is.logical)] = lapply(business[sapply(business, is.logical)], as.factor)
+
 write.csv(business, paste0(basepath, "business.csv"), row.names=F)
 
 #join previous inspection data with yelp business data to form training set
 business_train = inner_join(business, train_yelp)
 business_train$date = ymd(business_train$date)
-business_train$weekday = as.factor(wday(business_train$date))
-business_train$month = as.factor(month(business_train$date))
+business_train$weekday = as.factor(paste0("WD", wday(business_train$date)))
+business_train$weekday = ifelse(business_train$weekday == "WD1", "SUN", ifelse(business_train$weekday == "WD7", "SAT", "WORK"))
+business_train$month = as.factor(paste0("M", lubridate::month(business_train$date)))
+business_train$weird_date = paste(month(business_train$date), day(business_train$date), sep="-") == "12-30"
+business_train$month=NULL
+business_train$year = as.factor(paste0("Y", year(business_train$date)))
+
+#business_train = group_by(business_train, business_id) %>%
+#  arrange(date) %>%
+#  mutate(prev_V1 = lag(V1), prev_V2 = lag(V2), prev_V3 = lag(V3),
+#         avg_V1 = cummean(ifelse(is.na(lag(V1)), 0, lag(V1))),
+#         avg_V2 = cummean(ifelse(is.na(lag(V2)), 0, lag(V2))),
+#         avg_V3 = cummean(ifelse(is.na(lag(V3)), 0, lag(V3))),
+#         days_since_last=as.numeric(date-lag(date), "days"))
+
+business_train[is.na(business_train)] = 0
 
 #rolling join with review data: always join latest data before inspection
 #read topic data in as data.table for rolling join
@@ -101,57 +120,29 @@ business_train_lda =
                roll=T, nomatch=0
                ]
 
+tips_topics_cumulative = fread(paste0(basepath, "tips_topics_cumulative10.csv"))
+tips_topics_cumulative$date = ymd(tips_topics_cumulative$date )
+business_train_lda_tips =
+  data.table(select(tips_topics_cumulative, restaurant_id, date, starts_with("tip_X")),
+             key=c("restaurant_id", "date"))[
+               data.table(business_train_lda,
+                          key=c("restaurant_id", "date")),
+               roll=T, nomatch=NA
+               ]
 
-business_train_frac=sample_frac(business_train_lda, 0.5)
-#rf.caret =train(select(business_train_frac,-V1,-V2,-V3,-date,-id,-restaurant_id,-business_id,
-#                       -full_address,-open,-name,-latitude,-longitude,
-#                       -type, -state, -city,-contains("hours.")),
-#                business_train_frac$V1,
-#                method="rf",
-#                trControl = trainControl(number = 5, verboseIter=T))
-#varImpPlot(rf.caret$finalModel)
+review_numeric = fread(paste0(basepath, "review_numeric.csv"))
+review_numeric$date = ymd(review_numeric$date )
+business_train_lda_tips =
+  data.table(select(review_numeric, restaurant_id, date, starts_with("stars"), stars_entropy),
+             key=c("restaurant_id", "date"))[
+               data.table(business_train_lda_tips,
+                          key=c("restaurant_id", "date")),
+               roll=T, nomatch=NA
+               ]
 
-#rpart=train(select(business_train_frac,-V1,-V2,-V3,-restaurant_id,-business_id,
-#                       -full_address,-open,-name,-latitude,-longitude,
-#                       -type, -state, -city, -date),
-#            business_train_frac$V3,
-#      method="rpart",
-#      tuneGrid = data.frame(cp = 0.005),
-#      trControl = trainControl(number = 1, verboseIter=T))
-#fancyRpartPlot(rpart$finalModel)
+business_train_lda_tips[is.na(business_train_lda_tips)] = 0
+business_train_lda_tips = data.frame(business_train_lda_tips)
+
+write.csv(business_train_lda_tips, paste0(basepath, "business_train.csv"), row.names=F)
 
 
-rf.V1 = train(select(business_train_lda,-V1,-V2,-V3,-date,-restaurant_id,-business_id,
-                     -full_address,-open,-name,-latitude,-longitude,
-                     -type, -state, -city,-contains("hours.")),
-              log(business_train_lda$V1+1),
-              method="rf",
-              tuneGrid = data.frame(.mtry = c(10)),
-              trControl = trainControl(number = 1, verboseIter=T),
-              importance=T)
-varImpPlot(rf.V1$finalModel, type=1)
-
-rf.V2 = train(select(business_train_lda,-V1,-V2,-V3,-date,-restaurant_id,-business_id,
-                     -full_address,-open,-name,-latitude,-longitude,
-                     -type, -state, -city,-contains("hours.")),
-              log(business_train_lda$V2+1),
-              method="rf",
-              tuneGrid = data.frame(.mtry = c(10)),
-              trControl = trainControl(number = 1, verboseIter=T),
-              importance=T)
-varImpPlot(rf.V2$finalModel, type=1)
-
-rf.V3 = train(select(business_train_lda,-V1,-V2,-V3,-date,-restaurant_id,-business_id,
-                     -full_address,-open,-name,-latitude,-longitude,
-                     -type, -state, -city,-contains("hours.")),
-              log(business_train_lda$V3+1),
-              method="rf",
-              tuneGrid = data.frame(.mtry = c(10)),
-              trControl = trainControl(number = 1, verboseIter=T),
-              importance=T)
-varImpPlot(rf.V3$finalModel, type=1)
-
-estimatedTotalRMSLE =(min(rf.V1$results$RMSE) + 2 * min(rf.V2$results$RMSE) + 5 * min(rf.V3$results$RMSE)) /3
-
-models = list(V1 = rf.V1$finalModel, V2 = rf.V2$finalModel, V3 = rf.V3$finalModel)
-save(models, file=paste0(basepath, "models_rf10_lda25.Rdata"))

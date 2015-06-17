@@ -10,7 +10,8 @@ library(rattle)
 library(doMC)
 library(data.table)
 
-basepath = "/mnt//r-devel/simon//boston-yelp-challenge/data/"
+basepath = "Desktop/DeveloperSivan/boston-yelp-challenge/data/"
+#basepath = "Desktop/DeveloperSivan/boston-yelp-challenge/data/"
 source(paste0(basepath, "../code/helpers.R"))
 
 registerDoMC(cores = 7)
@@ -18,6 +19,12 @@ registerDoMC(cores = 7)
 #previous inspection results
 train_lab = read.csv(paste0(basepath, "train_labels.csv"))
 names(train_lab) = c("id", "date", "restaurant_id", "V1", "V2", "V3")
+
+#explore:
+View(summary(train_lab))
+#10% of the data lacks the real date and shows last day of 2012 and 2013
+#JEbamOR restaurantID has been controlled most frequently (45)
+#V2 is least frequent in the data
 
 #map inspections to yelp ids, taking care of multiple ids?
 train_yelp = id2yelp %>%
@@ -44,6 +51,7 @@ business = multi_json(paste0(basepath, "yelp_academic_dataset_business.json"))
 names(business) = gsub(" ", ".", names(business))
 #we don;t care which credit card, convert list col to simple logical col by applying any()
 business$attributes.Accepts.Credit.Cards = sapply(business$attributes.Accepts.Credit.Cards, any)
+#sivan keep credit card information
 #convert list based category col to mutiple logical columns, one per category
 categories = multi_model_matrix(select(business, business_id, data=categories), "nocategory", "cat_")
 #convert list based neighborhood col to mutiple logical columns, one per neighborhood
@@ -91,6 +99,7 @@ business_train$month = as.factor(month(business_train$date))
 
 #rolling join with review data: always join latest data before inspection
 #read topic data in as data.table for rolling join
+#sivan: loko at review_lda_topics.R and investigate topics
 review_topics_cumulative = fread(paste0(basepath, "review_topics_cumulative25.csv"))
 review_topics_cumulative$date = ymd(review_topics_cumulative$date )
 business_train_lda =
@@ -102,7 +111,7 @@ business_train_lda =
                ]
 
 
-business_train_frac=sample_frac(business_train_lda, 0.5)
+business_train_frac=sample_frac(business_train_lda, 0.1)
 #rf.caret =train(select(business_train_frac,-V1,-V2,-V3,-date,-id,-restaurant_id,-business_id,
 #                       -full_address,-open,-name,-latitude,-longitude,
 #                       -type, -state, -city,-contains("hours.")),
@@ -121,10 +130,10 @@ business_train_frac=sample_frac(business_train_lda, 0.5)
 #fancyRpartPlot(rpart$finalModel)
 
 
-rf.V1 = train(select(business_train_lda,-V1,-V2,-V3,-date,-restaurant_id,-business_id,
+rf.V1 = train(select(business_train_frac,-V1,-V2,-V3,-date,-restaurant_id,-business_id,
                      -full_address,-open,-name,-latitude,-longitude,
                      -type, -state, -city,-contains("hours.")),
-              log(business_train_lda$V1+1),
+              log(business_train_frac$V1+1),
               method="rf",
               tuneGrid = data.frame(.mtry = c(10)),
               trControl = trainControl(number = 1, verboseIter=T),

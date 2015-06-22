@@ -10,7 +10,8 @@ library(rattle)
 library(doMC)
 library(data.table)
 
-basepath = "/mnt//r-devel/simon//boston-yelp-challenge/data/"
+basepath = "Desktop/DeveloperSivan/boston-yelp-challenge/data/"
+#basepath = "Desktop/DeveloperSivan/boston-yelp-challenge/data/"
 source(paste0(basepath, "../code/helpers.R"))
 
 #registerDoMC(cores = 7)
@@ -18,6 +19,12 @@ source(paste0(basepath, "../code/helpers.R"))
 #previous inspection results
 train_lab = read.csv(paste0(basepath, "train_labels.csv"))
 names(train_lab) = c("id", "date", "restaurant_id", "V1", "V2", "V3")
+
+#explore:
+View(summary(train_lab))
+#10% of the data lacks the real date and shows last day of 2012 and 2013
+#JEbamOR restaurantID has been controlled most frequently (45)
+#V2 is least frequent in the data
 
 #map inspections to yelp ids, taking care of multiple ids?
 train_yelp = id2yelp %>%
@@ -44,6 +51,7 @@ business = multi_json(paste0(basepath, "yelp_academic_dataset_business.json"))
 names(business) = gsub(" ", ".", names(business))
 #we don;t care which credit card, convert list col to simple logical col by applying any()
 business$attributes.Accepts.Credit.Cards = sapply(business$attributes.Accepts.Credit.Cards, any)
+#sivan keep credit card information
 #convert list based category col to mutiple logical columns, one per category
 categories = multi_model_matrix(select(business, business_id, data=categories), "nocategory", "cat_")
 #convert list based neighborhood col to mutiple logical columns, one per neighborhood
@@ -110,6 +118,7 @@ business_train[is.na(business_train)] = 0
 
 #rolling join with review data: always join latest data before inspection
 #read topic data in as data.table for rolling join
+#sivan: loko at review_lda_topics.R and investigate topics
 review_topics_cumulative = fread(paste0(basepath, "review_topics_cumulative25.csv"))
 review_topics_cumulative$date = ymd(review_topics_cumulative$date )
 business_train_lda =
@@ -146,3 +155,59 @@ business_train_lda_tips = data.frame(business_train_lda_tips)
 write.csv(business_train_lda_tips, paste0(basepath, "business_train.csv"), row.names=F)
 
 
+<<<<<<< HEAD
+business_train_frac=sample_frac(business_train_lda, 0.1)
+#rf.caret =train(select(business_train_frac,-V1,-V2,-V3,-date,-id,-restaurant_id,-business_id,
+#                       -full_address,-open,-name,-latitude,-longitude,
+#                       -type, -state, -city,-contains("hours.")),
+#                business_train_frac$V1,
+#                method="rf",
+#                trControl = trainControl(number = 5, verboseIter=T))
+#varImpPlot(rf.caret$finalModel)
+
+#rpart=train(select(business_train_frac,-V1,-V2,-V3,-restaurant_id,-business_id,
+#                       -full_address,-open,-name,-latitude,-longitude,
+#                       -type, -state, -city, -date),
+#            business_train_frac$V3,
+#      method="rpart",
+#      tuneGrid = data.frame(cp = 0.005),
+#      trControl = trainControl(number = 1, verboseIter=T))
+#fancyRpartPlot(rpart$finalModel)
+
+
+rf.V1 = train(select(business_train_frac,-V1,-V2,-V3,-date,-restaurant_id,-business_id,
+                     -full_address,-open,-name,-latitude,-longitude,
+                     -type, -state, -city,-contains("hours.")),
+              log(business_train_frac$V1+1),
+              method="rf",
+              tuneGrid = data.frame(.mtry = c(10)),
+              trControl = trainControl(number = 1, verboseIter=T),
+              importance=T)
+varImpPlot(rf.V1$finalModel, type=1)
+
+rf.V2 = train(select(business_train_lda,-V1,-V2,-V3,-date,-restaurant_id,-business_id,
+                     -full_address,-open,-name,-latitude,-longitude,
+                     -type, -state, -city,-contains("hours.")),
+              log(business_train_lda$V2+1),
+              method="rf",
+              tuneGrid = data.frame(.mtry = c(10)),
+              trControl = trainControl(number = 1, verboseIter=T),
+              importance=T)
+varImpPlot(rf.V2$finalModel, type=1)
+
+rf.V3 = train(select(business_train_lda,-V1,-V2,-V3,-date,-restaurant_id,-business_id,
+                     -full_address,-open,-name,-latitude,-longitude,
+                     -type, -state, -city,-contains("hours.")),
+              log(business_train_lda$V3+1),
+              method="rf",
+              tuneGrid = data.frame(.mtry = c(10)),
+              trControl = trainControl(number = 1, verboseIter=T),
+              importance=T)
+varImpPlot(rf.V3$finalModel, type=1)
+
+estimatedTotalRMSLE =(min(rf.V1$results$RMSE) + 2 * min(rf.V2$results$RMSE) + 5 * min(rf.V3$results$RMSE)) /3
+
+models = list(V1 = rf.V1$finalModel, V2 = rf.V2$finalModel, V3 = rf.V3$finalModel)
+save(models, file=paste0(basepath, "models_rf10_lda25.Rdata"))
+=======
+>>>>>>> 7ab44e2b273bc4382d089d82ab00282d5c97e573

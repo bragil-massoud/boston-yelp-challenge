@@ -9,6 +9,7 @@ library(data.table)
 
 basepath = "/mnt//r-devel/simon//boston-yelp-challenge/data/"
 source(paste0(basepath, "../code/helpers.R"))
+source(paste0(basepath, "../code/playground.R"))
 
 business_train=read.csv(paste0(basepath, "business_train.csv"))
 business_train$date = ymd(business_train$date)
@@ -22,3 +23,6 @@ business_train_words =
                           key=c("restaurant_id", "date")),
                roll=T, nomatch=NA
                ]
+
+business_train_words = data.frame(business_train_words)
+cond_cont(business_train_words, "word_fish", cuts=1)

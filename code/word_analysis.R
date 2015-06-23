@@ -11,11 +11,14 @@ basepath = "/mnt//r-devel/simon//boston-yelp-challenge/data/"
 source(paste0(basepath, "../code/helpers.R"))
 source(paste0(basepath, "../code/playground.R"))
 
+# read basic trainging data, date, restaurant, violations...
 business_train=read.csv(paste0(basepath, "business_train.csv"))
 business_train$date = ymd(business_train$date)
 
+# load table with restaurant, date, and mean # of mentions of each word up to that date
 words = fread(paste0("zcat ", basepath, "words100.csv.gz"))
 words$date = ymd(words$date )
+#join the two tables by taking the word informattion from the last review before the inspection
 business_train_words =
   data.table(select(words, restaurant_id, date, starts_with("word_")),
              key=c("restaurant_id", "date"))[
@@ -24,5 +27,7 @@ business_train_words =
                roll=T, nomatch=NA
                ]
 
+#convert back to data.frame because data.table is weird
 business_train_words = data.frame(business_train_words)
+#sample plot: violations with reviews mentioning fish or not
 cond_cont(business_train_words, "word_fish", cuts=1)

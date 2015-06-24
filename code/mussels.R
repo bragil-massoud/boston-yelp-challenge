@@ -106,13 +106,13 @@ business_train$weird_date = paste(month(business_train$date), day(business_train
 business_train$month=NULL
 business_train$year = as.factor(paste0("Y", year(business_train$date)))
 
-#business_train = group_by(business_train, business_id) %>%
-#  arrange(date) %>%
-#  mutate(prev_V1 = lag(V1), prev_V2 = lag(V2), prev_V3 = lag(V3),
-#         avg_V1 = cummean(ifelse(is.na(lag(V1)), 0, lag(V1))),
-#         avg_V2 = cummean(ifelse(is.na(lag(V2)), 0, lag(V2))),
-#         avg_V3 = cummean(ifelse(is.na(lag(V3)), 0, lag(V3))),
-#         days_since_last=as.numeric(date-lag(date), "days"))
+business_train = group_by(business_train, business_id) %>%
+  arrange(date) %>%
+  mutate(prev_V1 = lag(V1), prev_V2 = lag(V2), prev_V3 = lag(V3),
+         avg_V1 = cummean(ifelse(is.na(lag(V1)), 0, lag(V1))),
+         avg_V2 = cummean(ifelse(is.na(lag(V2)), 0, lag(V2))),
+         avg_V3 = cummean(ifelse(is.na(lag(V3)), 0, lag(V3))),
+         days_since_last=as.numeric(date-lag(date), "days"))
 
 business_train[is.na(business_train)] = 0
 

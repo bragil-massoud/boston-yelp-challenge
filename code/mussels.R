@@ -9,6 +9,7 @@ library(lubridate)
 library(rattle)
 library(doMC)
 library(data.table)
+library(tidyr)
 
 basepath = "Desktop/DeveloperSivan/boston-yelp-challenge/data/"
 #basepath = "Desktop/DeveloperSivan/boston-yelp-challenge/data/"
@@ -106,6 +107,7 @@ business_train$weird_date = paste(month(business_train$date), day(business_train
 business_train$month=NULL
 business_train$year = as.factor(paste0("Y", year(business_train$date)))
 
+
 business_train = group_by(business_train, business_id) %>%
   arrange(date) %>%
   mutate(prev_V1 = lag(V1), prev_V2 = lag(V2), prev_V3 = lag(V3),
@@ -113,6 +115,100 @@ business_train = group_by(business_train, business_id) %>%
          avg_V2 = cummean(ifelse(is.na(lag(V2)), 0, lag(V2))),
          avg_V3 = cummean(ifelse(is.na(lag(V3)), 0, lag(V3))),
          days_since_last=as.numeric(date-lag(date), "days"))
+
+
+business_train$Street = ifelse(grepl("St", business_train$full_address), gsub("\\d+(.*St).*","\\1", 
+                                                                             business_train$full_address), "")
+business_train$Street = ifelse((grepl("Ave", business_train$full_address) & business_train$Street == ""), 
+                                gsub("\\d+(.*Ave).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Plz", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Plz).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Broadway", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Broadway).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Blvd", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Blvd).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Parkway", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Parkway).*","\\1", business_train$full_address), business_train$Street)
+business_train$Street = ifelse((grepl("Pkwy", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Pkwy).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Rd", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Rd).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Pl", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Pl).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Dr", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Dr).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Causeway", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Causeway).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Alley", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Alley).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Hotel", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Hotel).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Sq", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Sq).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Airport", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Airport).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Market", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Market).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("End", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*End).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("P", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*P).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Cir", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Cir).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Hwy", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Hwy).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Waterfront", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Waterfront).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Fenway", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Fenway).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Road", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Road).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Boulevard", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Boulevard).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Row", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Row).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Bay", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Row).*","\\1", business_train$full_address), business_train$Street)
+
+business_train$Street = ifelse((grepl("Downtown", business_train$full_address) & business_train$Street == ""), 
+                               gsub("\\d+(.*Row).*","\\1", business_train$full_address), business_train$Street)
+
+
+streets = data.frame(Street = as.character(business_train$Street))
+streets_cnt = group_by(streets, Street) %>% 
+  summarize (Cnt = n()) %>% ungroup() %>% arrange(-Cnt)
+
+business_train_Street = left_join(business_train, streets_cnt, by = "Street")
+business_train_Street = ungroup(business_train_Street) %>% arrange(-Cnt)
+business_train_Street_c = business_train_Street
+business_train_Street_c$Street = ifelse(business_train_Street_c$Cnt > 500, business_train_Street_c$Street, "Other")
+
+
+
+View(select(business_train_Street_c, full_address, Street, Cnt))
 
 business_train[is.na(business_train)] = 0
 

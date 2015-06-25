@@ -55,6 +55,7 @@ for(i in 1:ncol(business_train_words)){
   }
 }
 
+
 Regresults = data.frame(words = relwords, estimates = estimates, pvalues = pvalues) %>% arrange(pvalues)
 Regresults$Bonferronicorrected = Regresults$pvalues*nrow(Regresults)
 Regresults_relevant = subset(Regresults, log(pvalues) < -10)
